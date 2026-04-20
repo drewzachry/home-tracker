@@ -184,6 +184,7 @@
       <button class="tab" onclick="showTab('log')">📋 Log</button>
       <button class="tab" onclick="showTab('add')">➕ Add</button>
       <button class="tab" onclick="showTab('scan')">📷 Scan Bill</button>
+      <button class="tab" onclick="showTab('sheet')">🗂 Sheet</button>
       <button class="tab" onclick="showTab('settings')">⚙️ Setup</button>
     </div>
   </header>
@@ -205,6 +206,7 @@ let state={
   voiceStage:'idle', voiceTranscript:'', voiceError:null, voiceForm:{},
   fieldMicActive:false, fieldMicTarget:null,
   modal:null, syncError:null, installPrompt:null,
+  sheetRows:null, sheetLoading:false, sheetError:null, sheetLastSync:null, sheetSortCol:9, sheetSortDir:1,
 };
 
 // CONFIG
@@ -325,14 +327,15 @@ function addToCalendar(rec){
 // ROUTING
 function showTab(tab){
   state.tab=tab;
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['dashboard','log','add','scan','settings'][i]===tab));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['dashboard','log','add','scan','sheet','settings'][i]===tab));
   if(tab==='scan')state.scanStage='upload';
   if(tab==='add'){state.voiceStage='idle';state.voiceTranscript='';state.voiceError=null;}
+  if(tab==='sheet'){state.sheetLoading=false;state.sheetRows=null;state.sheetError=null;loadSheetTab();}
   render();
 }
 
 // RENDER
-function render(){document.getElementById('content').innerHTML=({dashboard:renderDashboard,log:renderLog,add:renderAdd,scan:renderScan,settings:renderSettings}[state.tab]||renderDashboard)();attachEvents();}
+function render(){document.getElementById('content').innerHTML=({dashboard:renderDashboard,log:renderLog,add:renderAdd,scan:renderScan,sheet:renderSheet,settings:renderSettings}[state.tab]||renderDashboard)();attachEvents();}
 
 // DASHBOARD
 function renderDashboard(){
@@ -506,6 +509,147 @@ function renderScanDone(){
       ${(r?.nextDue||r?.nextServiceDate)?`<button class="btn btn-primary" onclick="addToCalendar(state.lastRecord)">📅 Add Reminder</button>`:''}
       <button class="btn btn-ghost" onclick="state.scanStage='upload';render()">📷 Scan Another</button>
     </div>`;
+}
+
+// SHEET TAB
+async function loadSheetTab(){
+  const sid=cfg('sheetId'),ak=cfg('apiKey');
+  if(!sid||!ak){render();return;}
+  state.sheetLoading=true;state.sheetError=null;render();
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Log!A1:M1000?key=${ak}`);
+    if(!r.ok)throw new Error('Could not load sheet (HTTP '+r.status+')');
+    const data=await r.json();
+    state.sheetRows=data.values||[];
+    state.sheetLastSync=new Date();
+    state.sheetLoading=false;
+  }catch(e){state.sheetError=e.message;state.sheetLoading=false;}
+  render();
+}
+
+function renderSheet(){
+  const sid=cfg('sheetId'),ak=cfg('apiKey');
+  const sheetUrl=sid?`https://docs.google.com/spreadsheets/d/${sid}/edit`:'';
+
+  if(!sid||!ak)return`<div class="card" style="text-align:center;padding:32px 20px">
+    <div style="font-size:40px;margin-bottom:14px">📊</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text2);margin-bottom:8px">No Sheet connected yet</div>
+    <div style="font-size:13px;color:var(--slate);margin-bottom:20px">Add your Google Sheet ID and API key in Setup to see live data here.</div>
+    <button class="btn btn-primary" style="margin:0 auto" onclick="showTab('settings')">⚙️ Go to Setup</button>
+  </div>`;
+
+  if(state.sheetLoading)return`<div style="text-align:center;padding:60px 20px">
+    <div class="scan-ring" style="margin:0 auto 20px"></div>
+    <div style="font-size:14px;color:var(--slate)">Loading your Google Sheet…</div>
+  </div>`;
+
+  if(state.sheetError)return`<div class="err-box">⚠️ ${esc(state.sheetError)}</div>
+    <button class="btn btn-primary" onclick="loadSheetTab()">🔄 Try Again</button>`;
+
+  const rows=state.sheetRows||[];
+  const dataRows=rows.slice(1).filter(r=>r.some(c=>c));
+
+  if(rows.length===0)return`<div style="text-align:center;padding:48px 20px;color:var(--slate)">
+    <div style="font-size:36px;margin-bottom:12px">📭</div>Your sheet is empty — scan a bill or add an entry first.</div>`;
+
+  // Sort
+  const sc=state.sheetSortCol,sd=state.sheetSortDir;
+  const sorted=[...dataRows].sort((a,b)=>{const av=a[sc]||'',bv=b[sc]||'';return av<bv?-sd:av>bv?sd:0;});
+
+  const rowBg=r=>{const s=r[10]||'';return s==='Overdue'?'rgba(198,40,40,0.08)':s==='Due Soon'?'rgba(245,127,23,0.07)':'transparent';};
+  const sBadge=s=>`<span class="badge ${s==='Overdue'?'Overdue':s==='Due Soon'?'Due-Soon':'OK'}">${s||'—'}</span>`;
+  const syncTime=state.sheetLastSync?state.sheetLastSync.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'—';
+
+  // counts
+  const nOver=dataRows.filter(r=>(r[10]||'')==='Overdue').length;
+  const nSoon=dataRows.filter(r=>(r[10]||'')==='Due Soon').length;
+  const nOk=dataRows.filter(r=>(r[10]||'')==='OK').length;
+
+  const mHdrs=['System','Performed By','Last','Next Due','Status'];
+  const mCols=[1,6,5,9,10];
+
+  return`<!-- toolbar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-family:'Lora',serif;font-size:16px;font-weight:700;color:var(--text)">📊 Google Sheet</div>
+      <div style="font-size:11px;color:var(--slate);margin-top:2px">Synced ${syncTime} · ${dataRows.length} rows</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px" onclick="loadSheetTab()">🔄 Refresh</button>
+      ${sheetUrl?`<a class="btn btn-primary" style="padding:8px 12px;font-size:12px;text-decoration:none" href="${sheetUrl}" target="_blank">↗ Open in Sheets</a>`:''}
+    </div>
+  </div>
+  <!-- summary -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+    <div style="background:#ffebee;border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">🚨</div><div style="font-size:26px;font-weight:800;color:#c62828;line-height:1.1">${nOver}</div><div style="font-size:11px;color:#c62828">Overdue</div></div>
+    <div style="background:#fffde7;border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">⚠️</div><div style="font-size:26px;font-weight:800;color:#f57f17;line-height:1.1">${nSoon}</div><div style="font-size:11px;color:#f57f17">Due Soon</div></div>
+    <div style="background:#e8f5e9;border-radius:12px;padding:12px;text-align:center"><div style="font-size:18px">✅</div><div style="font-size:26px;font-weight:800;color:#2e7d32;line-height:1.1">${nOk}</div><div style="font-size:11px;color:#2e7d32">OK</div></div>
+  </div>
+  <!-- table -->
+  <div class="tbl-wrap">
+    <div style="display:grid;grid-template-columns:1fr 1fr 72px 84px 68px;background:var(--navy2);padding:9px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.5px">
+      ${mHdrs.map((h,i)=>`<div style="cursor:pointer;user-select:none" onclick="sheetSort(${mCols[i]})">${h}${sc===mCols[i]?(sd>0?' ↑':' ↓'):''}</div>`).join('')}
+    </div>
+    ${sorted.map((row,ri)=>`
+      <div style="display:grid;grid-template-columns:1fr 1fr 72px 84px 68px;padding:11px 12px;border-bottom:1px solid var(--border);background:${rowBg(row)};align-items:center;cursor:pointer" onclick="sheetRowDetail(${ri})">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${CAT_ICONS[row[2]]||'🔧'} ${esc(row[1]||'—')}</div>
+          ${row[8]?`<div style="font-size:10px;color:var(--slate)">$${Number(row[8]).toLocaleString()}</div>`:''}
+        </div>
+        <div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(row[6]||'—')}</div>
+        <div style="font-size:11px;color:var(--slate)">${row[5]?fmtDate(row[5]):'—'}</div>
+        <div style="font-size:11px;font-weight:600;color:${row[10]==='Overdue'?'#ef9a9a':row[10]==='Due Soon'?'#ffb74d':'var(--slate)'}">${row[9]?fmtDate(row[9]):'—'}</div>
+        <div>${sBadge(row[10]||'')}</div>
+      </div>`).join('')}
+    ${sorted.length===0?`<div class="empty"><div class="empty-icon">📭</div>No rows found.</div>`:''}
+  </div>
+  <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Tap any row for full details · tap a column header to sort</div>`;
+}
+
+function sheetSort(col){
+  if(state.sheetSortCol===col)state.sheetSortDir*=-1;
+  else{state.sheetSortCol=col;state.sheetSortDir=1;}
+  render();
+}
+
+function sheetRowDetail(ri){
+  const rows=state.sheetRows||[];
+  const dataRows=rows.slice(1).filter(r=>r.some(c=>c));
+  const sc=state.sheetSortCol,sd=state.sheetSortDir;
+  const sorted=[...dataRows].sort((a,b)=>{const av=a[sc]||'',bv=b[sc]||'';return av<bv?-sd:av>bv?sd:0;});
+  const row=sorted[ri];if(!row)return;
+  const status=row[10]||'OK',cat=row[2]||'Other';
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';overlay.id='modal-overlay';
+  overlay.innerHTML=`<div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px">
+      <span style="font-size:32px">${CAT_ICONS[cat]||'🔧'}</span>
+      <div style="flex:1"><div class="modal-title">${esc(row[1]||'—')}</div><div class="modal-sub">${esc(cat)} · ${esc(row[3]||'')}</div></div>
+      <span class="badge ${scls(status)}">${status}</span>
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      ${[['Installed',fmtDate(row[4])],['Last Maint.',fmtDate(row[5])],['Next Due',fmtDate(row[9])],['Cost',row[8]?'$'+Number(row[8]).toLocaleString():'—'],['Performed By',row[6]||'—'],['Location',row[3]||'—']].map(([l,v])=>`<div><div class="form-label">${l}</div><div style="color:var(--text2);font-weight:600;margin-top:4px;font-size:13px">${esc(v)}</div></div>`).join('')}
+    </div>
+    ${row[7]?`<div style="margin-bottom:12px"><div class="form-label">Work Done</div><div style="background:#0f1923;border-radius:8px;padding:10px 12px;font-size:13px;margin-top:6px;color:var(--text2)">${esc(row[7])}</div></div>`:''}
+    ${row[11]?`<div style="margin-bottom:16px"><div class="form-label">Notes</div><div style="background:rgba(245,127,23,.1);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:6px;color:#ffb74d">💡 ${esc(row[11])}</div></div>`:''}
+    ${row[12]==='TRUE'?`<div style="margin-bottom:12px"><span style="background:rgba(79,195,247,.1);border:1px solid rgba(79,195,247,.2);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--sky)">📄 Scanned from bill</span></div>`:''}
+    <div class="btn-row">
+      ${row[9]?`<button class="btn btn-primary" onclick="calFromSheetRow(${ri})">📅 Add Reminder</button>`:''}
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  document.body.appendChild(overlay);
+}
+
+function calFromSheetRow(ri){
+  const rows=state.sheetRows||[];
+  const dataRows=rows.slice(1).filter(r=>r.some(c=>c));
+  const sc=state.sheetSortCol,sd=state.sheetSortDir;
+  const sorted=[...dataRows].sort((a,b)=>{const av=a[sc]||'',bv=b[sc]||'';return av<bv?-sd:av>bv?sd:0;});
+  const row=sorted[ri];if(!row||!row[9])return;
+  addToCalendar({system:row[1],performedBy:row[6],notes:row[11],nextDue:row[9]});
 }
 
 // SETTINGS
