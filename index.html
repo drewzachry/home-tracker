@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#0d2137"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Home Tracker"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<title>Home Maintenance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:#0d2137; --navy2:#1a3c5e; --navy3:#112030;
+    --blue:#1565c0; --sky:#4fc3f7; --slate:#5d8aa8; --muted:#2a4a62;
+    --text:#e8edf3; --text2:#b0c4d8; --card:#111c27; --border:#1e3a52;
+    --red:#c62828; --red-bg:rgba(198,40,40,0.12); --red-bd:rgba(198,40,40,0.3);
+    --amber:#f57f17; --amber-bg:rgba(245,127,23,0.12); --amber-bd:rgba(245,127,23,0.3);
+    --green:#2e7d32; --green-bg:rgba(46,125,50,0.12); --green-bd:rgba(46,125,50,0.3);
+    --purple:#7c3aed; --purple-bg:rgba(124,58,237,0.12); --purple-bd:rgba(124,58,237,0.35);
+    --radius:14px; --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overscroll-behavior:none}
+  body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);overflow-x:hidden}
+
+  #app{display:flex;flex-direction:column;height:100dvh}
+  header{background:linear-gradient(160deg,var(--navy2),var(--navy3));padding:52px 20px 0;border-bottom:1px solid var(--border);flex-shrink:0}
+  .header-inner{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .header-title{font-family:'Lora',serif;font-size:20px;font-weight:700;color:var(--text);letter-spacing:.2px}
+  .header-sub{font-size:12px;color:var(--slate);margin-top:2px}
+  .tab-bar{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab{background:transparent;color:rgba(255,255,255,.55);border:none;border-radius:10px 10px 0 0;padding:10px 15px;font-weight:600;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap;flex-shrink:0}
+  .tab.active{background:#f4f6f9;color:var(--navy2)}
+  .content{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-webkit-overflow-scrolling:touch}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+  .card-title{font-family:'Lora',serif;font-size:14px;font-weight:600;color:var(--sky);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .kpi{border-radius:var(--radius);padding:16px 18px}
+  .kpi-icon{font-size:22px;margin-bottom:6px}
+  .kpi-val{font-size:34px;font-weight:800;line-height:1;margin-bottom:4px}
+  .kpi-lbl{font-size:12px}
+  .kpi.total{background:#e3f2fd;color:#1565c0} .kpi.total .kpi-lbl{color:#5d8aa8}
+  .kpi.over{background:#ffebee;color:#c62828}  .kpi.over .kpi-lbl{color:#e57373}
+  .kpi.soon{background:#fffde7;color:#f57f17}  .kpi.soon .kpi-lbl{color:#ffb74d}
+  .kpi.ok{background:#e8f5e9;color:#2e7d32}    .kpi.ok .kpi-lbl{color:#66bb6a}
+
+  .badge{border-radius:20px;padding:3px 10px;font-weight:700;font-size:11px;display:inline-block}
+  .badge.Overdue{background:#ffcdd2;color:#b71c1c}
+  .badge.Due-Soon{background:#fff9c4;color:#e65100}
+  .badge.OK{background:#c8e6c9;color:#1b5e20}
+
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+  .tbl-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background .15s}
+  .tbl-row:last-child{border-bottom:none}
+  .tbl-row:active{background:rgba(79,195,247,.06)}
+  .tbl-row-title{font-weight:600;font-size:13px;color:var(--text);margin-bottom:2px}
+  .tbl-row-sub{font-size:11px;color:var(--slate)}
+  .tbl-row-right{text-align:right;flex-shrink:0}
+
+  .filters{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .filter-chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--slate);cursor:pointer;white-space:nowrap;transition:all .2s;font-family:'DM Sans',sans-serif}
+  .filter-chip.active{background:var(--blue);border-color:var(--blue);color:#fff}
+
+  /* ── Scanner ── */
+  .dropzone{border:2px dashed var(--border);border-radius:var(--radius);background:var(--card);padding:40px 24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+  .dropzone.drag{border-color:var(--sky);background:rgba(79,195,247,.06)}
+  .dropzone-icon{font-size:44px;margin-bottom:12px}
+  .dropzone-title{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:6px}
+  .dropzone-sub{font-size:13px;color:var(--slate)}
+  .scan-ring{width:56px;height:56px;border:3px solid var(--border);border-top:3px solid var(--sky);border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite}
+
+  /* ── Voice ── */
+  .voice-btn{width:100%;border:none;border-radius:var(--radius);padding:28px 20px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .3s;display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:14px}
+  .voice-btn.idle{background:var(--purple-bg);border:2px dashed var(--purple-bd);color:#c4b5fd}
+  .voice-btn.listening{background:rgba(239,68,68,.1);border:2px solid rgba(239,68,68,.5);color:#fca5a5;animation:pulse-border 1.2s infinite}
+  .voice-btn.processing{background:var(--purple-bg);border:2px solid var(--purple-bd);color:#c4b5fd;cursor:default}
+  .voice-icon{font-size:44px}
+  .voice-label{font-size:16px;font-weight:700}
+  .voice-sub{font-size:12px;opacity:.75}
+  .voice-transcript{background:#0f1923;border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:14px;min-height:56px;font-style:italic}
+  .voice-wave{display:flex;gap:5px;align-items:center;height:32px}
+  .voice-wave span{display:inline-block;width:5px;border-radius:3px;background:#ef4444;animation:wave 1s ease-in-out infinite}
+  .voice-wave span:nth-child(2){animation-delay:.1s} .voice-wave span:nth-child(3){animation-delay:.2s}
+  .voice-wave span:nth-child(4){animation-delay:.3s} .voice-wave span:nth-child(5){animation-delay:.4s}
+  @keyframes wave{0%,100%{height:6px}50%{height:26px}}
+  @keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.35)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+  @keyframes spin-slow{to{transform:rotate(360deg)}}
+
+  /* ── Entry mode toggle ── */
+  .mode-toggle{display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:20px}
+  .mode-btn{border:none;background:transparent;border-radius:9px;padding:11px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;color:var(--slate);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+  .mode-btn.active{background:var(--navy2);color:var(--text);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+
+  /* ── Forms ── */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form-field{display:flex;flex-direction:column;gap:5px}
+  .form-field.full{grid-column:1/-1}
+  .form-label{font-size:11px;color:var(--slate);text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+  .form-input,.form-select,.form-textarea{background:#0f1923;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;width:100%;transition:border-color .2s}
+  .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--sky);box-shadow:0 0 0 2px rgba(79,195,247,.15)}
+  .form-textarea{resize:vertical;min-height:70px}
+  .input-with-mic{position:relative}
+  .input-with-mic .form-input{padding-right:42px}
+  .mic-inline{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:4px;color:var(--slate);transition:color .2s;line-height:1}
+  .mic-inline:hover{color:var(--sky)}
+  .mic-inline.active{color:#ef4444;animation:pulse-icon 1s infinite}
+  @keyframes pulse-icon{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ── Buttons ── */
+  .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:10px;padding:12px 20px;font-weight:600;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;text-decoration:none}
+  .btn:active{opacity:.8}
+  .btn-primary{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff}
+  .btn-success{background:linear-gradient(135deg,var(--green),#1b5e20);color:#fff}
+  .btn-ghost{background:transparent;color:var(--slate);border:1px solid var(--border)}
+  .btn-sky{background:var(--sky);color:var(--navy)}
+  .btn-purple{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+
+  .attn-row{display:flex;align-items:center;gap:12px;border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer}
+  .attn-row.Overdue{background:var(--red-bg);border:1px solid var(--red-bd)}
+  .attn-row.Due-Soon{background:var(--amber-bg);border:1px solid var(--amber-bd)}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:200;padding:0}
+  .modal-sheet{background:#111c27;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92dvh;overflow-y:auto;padding:24px 20px calc(24px + var(--safe-bottom));animation:fadein .25s ease-out}
+  .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
+  .modal-title{font-family:'Lora',serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+  .modal-sub{font-size:12px;color:var(--slate);margin-bottom:20px}
+
+  .toast{position:fixed;bottom:calc(24px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#fff;border-radius:10px;padding:12px 20px;font-weight:600;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:transform .3s;z-index:300;white-space:nowrap;max-width:92vw;text-align:center}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  .setting-label{font-size:14px;font-weight:600;color:var(--text)}
+  .setting-sub{font-size:12px;color:var(--slate);margin-top:2px}
+  .setting-input{background:#0f1923;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:100%;margin-top:8px}
+  .setting-input:focus{border-color:var(--sky)}
+  .pill{background:var(--green-bg);border:1px solid var(--green-bd);color:#81c784;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+  .pill.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:#ffb74d}
+
+  .conf-high{color:#81c784;background:rgba(46,125,50,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+  .conf-medium{color:#ffb74d;background:rgba(245,124,0,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+  .conf-low{color:#ef9a9a;background:rgba(198,40,40,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+
+  .empty{text-align:center;padding:48px 24px;color:var(--slate);font-size:14px}
+  .empty-icon{font-size:40px;margin-bottom:12px}
+  .err-box{background:var(--red-bg);border:1px solid var(--red-bd);border-radius:10px;padding:14px 16px;color:#ef9a9a;font-size:13px;margin-bottom:14px}
+  .info-box{background:rgba(21,101,192,.12);border:1px solid rgba(21,101,192,.3);border-radius:10px;padding:12px 16px;color:#90caf9;font-size:13px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start}
+  .purple-box{background:var(--purple-bg);border:1px solid var(--purple-bd);border-radius:10px;padding:12px 16px;color:#c4b5fd;font-size:13px;margin-bottom:14px}
+
+  .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+  .sync-dot.ok{background:var(--green)} .sync-dot.warn{background:var(--amber)} .sync-dot.err{background:var(--red)}
+  .install-banner{background:linear-gradient(135deg,rgba(21,101,192,.3),rgba(13,71,161,.3));border:1px solid rgba(79,195,247,.2);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+  .install-banner-text{flex:1;font-size:13px;color:var(--text2)}
+  .install-banner-title{font-weight:600;font-size:14px;color:var(--sky);margin-bottom:2px}
+
+  .example-chips{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .example-chip{background:#0f1923;border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:12px;color:var(--text2);cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;transition:border-color .2s;line-height:1.5}
+  .example-chip:hover,.example-chip:active{border-color:var(--purple-bd);background:rgba(124,58,237,.06)}
+
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pop{0%{transform:scale(.7);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+  @keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-inner">
+      <span style="font-size:26px">🏠</span>
+      <div style="flex:1">
+        <div class="header-title">Home Tracker</div>
+        <div class="header-sub" id="header-sub">Loading…</div>
+      </div>
+      <div id="sync-status" style="font-size:11px;color:var(--slate);text-align:right"></div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab active" onclick="showTab('dashboard')">📊 Dashboard</button>
+      <button class="tab" onclick="showTab('log')">📋 Log</button>
+      <button class="tab" onclick="showTab('add')">➕ Add</button>
+      <button class="tab" onclick="showTab('scan')">📷 Scan Bill</button>
+      <button class="tab" onclick="showTab('settings')">⚙️ Setup</button>
+    </div>
+  </header>
+  <div class="content" id="content"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CAT_ICONS={"Heating/Cooling":"🌡️","Plumbing":"💧","Electrical":"⚡","Appliance":"🔌","Safety":"🛡️","Structural":"🏗️","Exterior":"🏡","Mechanical":"⚙️","Other":"🔧"};
+const CATS=["Heating/Cooling","Plumbing","Electrical","Appliance","Safety","Structural","Exterior","Mechanical","Other"];
+const CATS_ALL=["All",...CATS];
+const STATUS_OPTS=["All","Overdue","Due Soon","OK"];
+
+let state={
+  tab:'dashboard', records:[],
+  catFilter:'All', statusFilter:'All', search:'',
+  scanStage:'upload', scanImage:null, scanMime:null, scanExtracted:null, scanForm:{}, scanError:null, lastRecord:null,
+  addMode:'voice',
+  voiceStage:'idle', voiceTranscript:'', voiceError:null, voiceForm:{},
+  fieldMicActive:false, fieldMicTarget:null,
+  modal:null, syncError:null, installPrompt:null,
+};
+
+// CONFIG
+function cfg(k,v){if(v!==undefined)localStorage.setItem('hmt_'+k,v);return localStorage.getItem('hmt_'+k)||'';}
+
+// UTILS
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
+const daysDiff=s=>{const d=new Date(s);d.setHours(0,0,0,0);return Math.round((d-today())/86400000);};
+const compStatus=nd=>{if(!nd)return'OK';const d=daysDiff(nd);return d<0?'Overdue':d<=30?'Due Soon':'OK';};
+const fmtDate=s=>{if(!s||s==='null'||s==='undefined')return'—';const[y,m,d]=s.split('-');return`${m}/${d}/${y}`;};
+const dueLabel=nd=>{const d=daysDiff(nd);if(d<0)return`${Math.abs(d)}d overdue`;if(d===0)return'Due today';return`in ${d}d`;};
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const scls=s=>s==='Due Soon'?'Due-Soon':s;
+
+function showToast(msg,dur=3200){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+function updateHeaderSub(){document.getElementById('header-sub').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}
+
+// SHEETS
+async function sheetsRead(){
+  const sid=cfg('sheetId'),ak=cfg('apiKey');if(!sid||!ak)return null;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Log!A2:M1000?key=${ak}`);
+    if(!r.ok)throw new Error('Sheets read failed: '+r.status);
+    const data=await r.json();
+    return(data.values||[]).map(row=>({id:row[0]||Date.now(),system:row[1]||'',category:row[2]||'Other',location:row[3]||'',installed:row[4]||'',lastMaint:row[5]||'',performedBy:row[6]||'',workDone:row[7]||'',cost:row[8]||'',nextDue:row[9]||'',status:row[10]||compStatus(row[9]),notes:row[11]||'',scannedFromBill:row[12]==='TRUE'}));
+  }catch(e){state.syncError=e.message;return null;}
+}
+async function sheetsAppend(row){
+  const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'append',row})});
+  if(!r.ok)throw new Error('Append failed: '+r.status);
+  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+}
+async function loadFromSheets(){
+  updateSyncStatus('syncing');const rows=await sheetsRead();
+  if(rows){state.records=rows.map(r=>({...r,status:compStatus(r.nextDue)}));updateSyncStatus('ok');state.syncError=null;}
+  else updateSyncStatus('err');
+  render();
+}
+function updateSyncStatus(s){
+  const el=document.getElementById('sync-status');if(!cfg('sheetId')){el.innerHTML='';return;}
+  el.innerHTML=`<span class="sync-dot ${{ok:'ok',syncing:'warn',err:'err'}[s]}"></span>${{ok:'Synced',syncing:'Syncing…',err:'Error'}[s]}`;
+}
+
+// CLAUDE
+async function callClaude(messages){
+  const k=cfg('anthropicKey');if(!k)throw new Error('No Anthropic API key. Add it in Setup ⚙️');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})
+  });
+  if(!r.ok){const e=await r.json();throw new Error(e.error?.message||'API error '+r.status);}
+  const d=await r.json();return d.content?.find(b=>b.type==='text')?.text||'{}';
+}
+
+const BILL_PROMPT=`Analyze this home service bill/invoice/receipt. Respond ONLY with valid JSON, no markdown.
+{"system":"system or appliance name","category":"one of: Heating/Cooling, Plumbing, Electrical, Appliance, Safety, Structural, Exterior, Mechanical, Other","location":"room or area if mentioned","performedBy":"company or technician","serviceDate":"YYYY-MM-DD or null","nextServiceDate":"YYYY-MM-DD or null","workDone":"brief summary","cost":"number only or null","notes":"warranty/recommendations","confidence":"high|medium|low"}`;
+
+const VOICE_PROMPT=`Parse a spoken home maintenance log entry. Respond ONLY with valid JSON, no markdown.
+User said: "{{T}}"
+Today: {{D}}
+{"system":"home system or appliance name","category":"one of: Heating/Cooling, Plumbing, Electrical, Appliance, Safety, Structural, Exterior, Mechanical, Other","location":"room/area or empty string","performedBy":"company or person or empty string","lastMaint":"YYYY-MM-DD — use today if they say today/just now, parse relative dates like last week. Empty string if not mentioned","nextDue":"YYYY-MM-DD — calculate from intervals like in 6 months or next spring. Empty string if not mentioned","workDone":"what was done","cost":"number only or empty string","notes":"extra info/warranty","confidence":"high|medium|low"}`;
+
+async function scanBillImage(b64,mime){
+  const raw=await callClaude([{role:'user',content:[{type:'image',source:{type:'base64',media_type:mime,data:b64}},{type:'text',text:BILL_PROMPT}]}]);
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+async function parseVoiceEntry(transcript){
+  const prompt=VOICE_PROMPT.replace('{{T}}',transcript).replace('{{D}}',new Date().toISOString().split('T')[0]);
+  const raw=await callClaude([{role:'user',content:prompt}]);
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+// WEB SPEECH
+let recognition=null;
+const speechOK=()=>!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+
+function startListening(onInterim,onDone){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();recognition.continuous=true;recognition.interimResults=true;recognition.lang='en-US';
+  let final='';
+  recognition.onresult=e=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)final+=e.results[i][0].transcript+' ';else interim+=e.results[i][0].transcript;}
+    onInterim(final+interim,final);
+  };
+  recognition.onend=()=>onDone(final.trim());
+  recognition.onerror=e=>onDone(final.trim(),e.error);
+  recognition.start();
+}
+function stopListening(){if(recognition){recognition.stop();recognition=null;}}
+
+// FIELD-LEVEL MIC
+function startFieldMic(fieldId){
+  if(!speechOK()){showToast('⚠️ Voice not supported here');return;}
+  if(state.fieldMicActive){stopFieldMic();return;}
+  state.fieldMicActive=true;state.fieldMicTarget=fieldId;
+  const btn=document.getElementById('mic-'+fieldId);if(btn)btn.classList.add('active');
+  startListening(
+    interim=>{const el=document.getElementById(fieldId);if(el)el.value=interim;},
+    final=>{const el=document.getElementById(fieldId);if(el&&final)el.value=final;stopFieldMic();}
+  );
+}
+function stopFieldMic(){
+  stopListening();state.fieldMicActive=false;
+  if(state.fieldMicTarget){const b=document.getElementById('mic-'+state.fieldMicTarget);if(b)b.classList.remove('active');state.fieldMicTarget=null;}
+}
+
+// CALENDAR
+function addToCalendar(rec){
+  const ds=rec.nextDue||rec.nextServiceDate;if(!ds)return;
+  const d=new Date(ds+'T09:00:00'),e=new Date(d);e.setHours(9,30);
+  const f=dt=>dt.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Home Maintenance: '+rec.system)}&dates=${f(d)}/${f(e)}&details=${encodeURIComponent('By: '+(rec.performedBy||'TBD')+'\n'+(rec.notes||''))}`,'_blank');
+}
+
+// ROUTING
+function showTab(tab){
+  state.tab=tab;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['dashboard','log','add','scan','settings'][i]===tab));
+  if(tab==='scan')state.scanStage='upload';
+  if(tab==='add'){state.voiceStage='idle';state.voiceTranscript='';state.voiceError=null;}
+  render();
+}
+
+// RENDER
+function render(){document.getElementById('content').innerHTML=({dashboard:renderDashboard,log:renderLog,add:renderAdd,scan:renderScan,settings:renderSettings}[state.tab]||renderDashboard)();attachEvents();}
+
+// DASHBOARD
+function renderDashboard(){
+  const R=state.records;
+  const c={total:R.length,over:R.filter(r=>r.status==='Overdue').length,soon:R.filter(r=>r.status==='Due Soon').length,ok:R.filter(r=>r.status==='OK').length};
+  const urgent=R.filter(r=>r.status==='Overdue'||r.status==='Due Soon').sort((a,b)=>a.nextDue<b.nextDue?-1:1);
+  const inst=state.installPrompt?`<div class="install-banner"><span style="font-size:28px">📱</span><div class="install-banner-text"><div class="install-banner-title">Add to Home Screen</div>Install for quick access from your phone</div><button class="btn btn-sky" style="padding:8px 14px;font-size:12px" onclick="installApp()">Install</button></div>`:'';
+  const noSh=!cfg('sheetId')?`<div class="info-box"><span>💡</span><div>Connect Google Sheets in <strong>Setup ⚙️</strong> to sync across devices.</div></div>`:'';
+  const urgRows=urgent.length===0?`<div class="empty"><div class="empty-icon">🎉</div>All systems up to date!</div>`:urgent.map(r=>`<div class="attn-row ${scls(r.status)}" onclick="openRecord('${r.id}')"><span style="font-size:20px">${CAT_ICONS[r.category]||'🔧'}</span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;color:var(--text)">${esc(r.system)}</div><div style="font-size:11px;color:var(--slate)">${r.location?esc(r.location)+' · ':''}${fmtDate(r.nextDue)} (${dueLabel(r.nextDue)})</div></div><span class="badge ${scls(r.status)}">${r.status}</span></div>`).join('');
+  return`${inst}${noSh}<div class="kpi-grid"><div class="kpi total"><div class="kpi-icon">📋</div><div class="kpi-val">${c.total}</div><div class="kpi-lbl">Total Items</div></div><div class="kpi over"><div class="kpi-icon">🚨</div><div class="kpi-val">${c.over}</div><div class="kpi-lbl">Overdue</div></div><div class="kpi soon"><div class="kpi-icon">⚠️</div><div class="kpi-val">${c.soon}</div><div class="kpi-lbl">Due Soon</div></div><div class="kpi ok"><div class="kpi-icon">✅</div><div class="kpi-val">${c.ok}</div><div class="kpi-lbl">Up to Date</div></div></div><div class="card"><div class="card-title">⚠️ Needs Attention</div>${urgRows}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn btn-purple" style="justify-content:center" onclick="showTab('add')">🎙️ Voice / Form</button><button class="btn btn-primary" style="justify-content:center" onclick="showTab('scan')">📷 Scan Bill</button></div>`;
+}
+
+// LOG
+function renderLog(){
+  let R=state.records;
+  if(state.catFilter!=='All')R=R.filter(r=>r.category===state.catFilter);
+  if(state.statusFilter!=='All')R=R.filter(r=>r.status===state.statusFilter);
+  if(state.search)R=R.filter(r=>r.system.toLowerCase().includes(state.search.toLowerCase())||(r.location||'').toLowerCase().includes(state.search.toLowerCase()));
+  R=[...R].sort((a,b)=>a.nextDue<b.nextDue?-1:1);
+  const catChips=CATS_ALL.slice(0,6).map(c=>`<button class="filter-chip ${state.catFilter===c?'active':''}" onclick="setCat('${c}')">${c==='All'?'🏠 All':CAT_ICONS[c]+' '+c.split('/')[0]}</button>`).join('');
+  const rows=R.length===0?`<div class="empty"><div class="empty-icon">🔍</div>No items match.</div>`:R.map(r=>`<div class="tbl-row" onclick="openRecord('${r.id}')"><div><div class="tbl-row-title">${CAT_ICONS[r.category]||'🔧'} ${esc(r.system)}</div><div class="tbl-row-sub">${r.location?esc(r.location)+' · ':''}Next: ${fmtDate(r.nextDue)}</div></div><div class="tbl-row-right"><span class="badge ${scls(r.status)}">${r.status}</span>${r.scannedFromBill?'<div style="font-size:10px;color:var(--slate);margin-top:3px">📄 scanned</div>':''}</div></div>`).join('');
+  return`<input class="form-input" placeholder="🔍 Search systems…" value="${esc(state.search)}" oninput="state.search=this.value;render()" style="margin-bottom:12px"/><div class="filters">${catChips}</div><div class="filters">${STATUS_OPTS.map(s=>`<button class="filter-chip ${state.statusFilter===s?'active':''}" onclick="setSt('${s}')">${s}</button>`).join('')}</div><div style="font-size:12px;color:var(--slate);margin-bottom:10px;text-align:right">${R.length} of ${state.records.length} items</div><div class="tbl-wrap">${rows}</div><button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="openAddModal()">＋ Add Manually</button>`;
+}
+
+// ADD TAB
+function renderAdd(){
+  const toggle=`<div class="mode-toggle"><button class="mode-btn ${state.addMode==='voice'?'active':''}" onclick="setAddMode('voice')">🎙️ Voice</button><button class="mode-btn ${state.addMode==='form'?'active':''}" onclick="setAddMode('form')">📝 Form</button></div>`;
+  return toggle+(state.addMode==='voice'?renderVoiceEntry():renderFormEntry());
+}
+
+function renderVoiceEntry(){
+  if(!speechOK())return`<div class="err-box">⚠️ Voice input requires Chrome on Android, or Safari on iOS 15+. Use the Form tab instead.</div>${renderFormEntry()}`;
+  if(state.voiceStage==='idle')return`
+    ${state.voiceError?`<div class="err-box">⚠️ ${esc(state.voiceError)}</div>`:''}
+    <button class="voice-btn idle" onclick="startVoiceEntry()">
+      <div class="voice-icon">🎙️</div>
+      <div class="voice-label">Tap to speak</div>
+      <div class="voice-sub">Describe what was serviced, by who, and when</div>
+    </button>
+    <div class="card">
+      <div class="card-title">💬 Example phrases</div>
+      <div class="example-chips">
+        ${['"HVAC serviced today by Cool Air Pros for $180, next service in 6 months"','"Replaced the water heater myself last week, Rheem 50 gallon, 6 year warranty"','"Roof inspection by ABC Roofing on April 10th for $350 — check again in 2 years"','"Cleaned the gutters yesterday, need to do again in the fall"'].map(e=>`<div class="example-chip" onclick="tryExample(this)">${e}</div>`).join('')}
+      </div>
+    </div>`;
+  if(state.voiceStage==='listening')return`
+    <button class="voice-btn listening" onclick="stopVoiceCapture()">
+      <div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="voice-label">Listening… tap to stop</div>
+      <div class="voice-sub">Speak naturally — then tap to stop when done</div>
+    </button>
+    <div class="voice-transcript">${state.voiceTranscript||'<span style="color:var(--muted)">Start speaking…</span>'}</div>`;
+  if(state.voiceStage==='processing')return`
+    <button class="voice-btn processing">
+      <div class="voice-icon" style="animation:spin 1.5s linear infinite;display:inline-block">⚙️</div>
+      <div class="voice-label">Claude is parsing your entry…</div>
+    </button>
+    ${state.voiceTranscript?`<div class="voice-transcript">"${esc(state.voiceTranscript)}"</div>`:''}`;
+  if(state.voiceStage==='review')return renderVoiceReview();
+  return'';
+}
+
+function renderVoiceReview(){
+  const f=state.voiceForm;
+  return`<div class="purple-box">🎙️ Parsed from voice — review and fix anything below, then save</div>
+    ${state.voiceTranscript?`<div class="voice-transcript" style="margin-bottom:14px">"${esc(state.voiceTranscript)}"</div>`:''}
+    ${renderEditableFields('vf',f)}
+    ${f.nextDue?`<div class="info-box" style="margin-top:14px"><span>📅</span><div>Calendar reminder ready for <strong>${fmtDate(f.nextDue)}</strong> after saving</div></div>`:''}
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="saveVoiceRecord()">💾 Save to Log</button>
+      <button class="btn btn-purple" onclick="state.voiceStage='idle';state.voiceTranscript='';render()">🎙️ Re-record</button>
+      <button class="btn btn-ghost" onclick="state.voiceStage='idle';render()">Cancel</button>
+    </div>`;
+}
+
+function renderFormEntry(){
+  const f=state.voiceForm;
+  return`${renderEditableFields('vf',f)}
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="saveVoiceRecord()">💾 Save to Log</button>
+      <button class="btn btn-ghost" onclick="state.voiceForm={category:'Appliance'};render()">🗑 Clear</button>
+    </div>`;
+}
+
+function renderEditableFields(pfx,f){
+  const cats=CATS;
+  return`<div class="card">
+      <div class="card-title">🔧 System Info</div>
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">System / Device</label><div class="input-with-mic"><input class="form-input" id="${pfx}-system" value="${esc(f.system||'')}"/><button class="mic-inline" id="mic-${pfx}-system" onclick="startFieldMic('${pfx}-system')" title="Dictate">🎤</button></div></div>
+        <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="${pfx}-category">${cats.map(c=>`<option${(f.category||'Appliance')===c?' selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="form-field"><label class="form-label">Location</label><div class="input-with-mic"><input class="form-input" id="${pfx}-location" value="${esc(f.location||'')}"/><button class="mic-inline" id="mic-${pfx}-location" onclick="startFieldMic('${pfx}-location')" title="Dictate">🎤</button></div></div>
+        <div class="form-field full"><label class="form-label">Performed By</label><div class="input-with-mic"><input class="form-input" id="${pfx}-performedBy" value="${esc(f.performedBy||'')}"/><button class="mic-inline" id="mic-${pfx}-performedBy" onclick="startFieldMic('${pfx}-performedBy')" title="Dictate">🎤</button></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📅 Dates &amp; Cost</div>
+      <div class="form-grid">
+        <div class="form-field"><label class="form-label">Installed Date</label><input type="date" class="form-input" id="${pfx}-installed" value="${f.installed||''}"/></div>
+        <div class="form-field"><label class="form-label">Date of Service</label><input type="date" class="form-input" id="${pfx}-lastMaint" value="${f.lastMaint||''}"/></div>
+        <div class="form-field"><label class="form-label">Next Due Date</label><input type="date" class="form-input" id="${pfx}-nextDue" value="${f.nextDue||''}"/></div>
+        <div class="form-field"><label class="form-label">Cost ($)</label><input type="number" class="form-input" id="${pfx}-cost" value="${f.cost||''}"/></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Details</div>
+      <div class="form-field" style="margin-bottom:12px"><label class="form-label">Work Done</label><textarea class="form-textarea" id="${pfx}-workDone">${esc(f.workDone||'')}</textarea></div>
+      <div class="form-field"><label class="form-label">Notes / Recommendations</label><textarea class="form-textarea" id="${pfx}-notes">${esc(f.notes||'')}</textarea></div>
+    </div>`;
+}
+
+// SCAN
+function renderScan(){
+  if(state.scanStage==='upload')return renderScanUpload();
+  if(state.scanStage==='scanning')return`${state.scanImage?`<img src="data:${state.scanMime};base64,${state.scanImage}" style="width:100%;max-height:260px;object-fit:contain;border-radius:var(--radius);margin-bottom:16px"/>`:''}
+    <div style="text-align:center;padding:40px 0"><div class="scan-ring"></div><div style="font-size:16px;font-weight:600;color:var(--text2);margin-bottom:8px">Analyzing your bill…</div><div style="font-size:13px;color:var(--slate)">Extracting system, dates, and provider</div></div>`;
+  if(state.scanStage==='review')return renderScanReview();
+  if(state.scanStage==='done')return renderScanDone();
+}
+
+function renderScanUpload(){
+  return`${state.scanError?`<div class="err-box">⚠️ ${esc(state.scanError)}</div>`:''}
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('file-inp').click()">
+      <div class="dropzone-icon">📄</div>
+      <div class="dropzone-title">Drop or tap to upload a bill</div>
+      <div class="dropzone-sub">JPG, PNG, HEIC — any service invoice</div>
+    </div>
+    <input type="file" id="file-inp" accept="image/*" style="display:none" onchange="handleFile(this)"/>
+    <div style="text-align:center;margin:14px 0;color:var(--muted);font-size:13px">— or —</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="document.getElementById('cam-inp').click()">📷 Take a Photo</button>
+    <input type="file" id="cam-inp" accept="image/*" capture="environment" style="display:none" onchange="handleFile(this)"/>
+    <div class="card" style="margin-top:18px"><div class="card-title">💡 Tips</div><div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--slate)">${['Lay bill flat on a dark surface','Ensure text is sharp and well-lit','Capture the full page','Avoid glare on glossy paper'].map(t=>`<div>› ${t}</div>`).join('')}</div></div>`;
+}
+
+function renderScanReview(){
+  const f=state.scanForm,ex=state.scanExtracted;
+  const confCls={high:'conf-high',medium:'conf-medium',low:'conf-low'}[ex?.confidence]||'conf-medium';
+  const confLbl={high:'✓ High confidence',medium:'◉ Review carefully',low:'⚠ Low — check all fields'}[ex?.confidence]||'◉ Review';
+  const cats=CATS;
+  return`<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+      ${state.scanImage?`<img src="data:${state.scanMime};base64,${state.scanImage}" style="width:80px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0"/>`:''}
+      <div><div style="font-size:12px;color:var(--slate);margin-bottom:6px">Extraction confidence</div><span class="${confCls}">${confLbl}</span><div style="font-size:11px;color:var(--muted);margin-top:6px">Edit any field before saving</div></div>
+    </div>
+    <div class="card"><div class="card-title">${CAT_ICONS[f.category]||'🔧'} System Info</div><div class="form-grid">
+      <div class="form-field full"><label class="form-label">System / Device</label><input class="form-input" id="sf-system" value="${esc(f.system||'')}"/></div>
+      <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="sf-category">${cats.map(c=>`<option${f.category===c?' selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="form-field"><label class="form-label">Location</label><input class="form-input" id="sf-location" value="${esc(f.location||'')}"/></div>
+      <div class="form-field full"><label class="form-label">Serviced By</label><input class="form-input" id="sf-performedBy" value="${esc(f.performedBy||'')}"/></div>
+    </div></div>
+    <div class="card"><div class="card-title">📅 Dates &amp; Cost</div><div class="form-grid">
+      <div class="form-field"><label class="form-label">Date of Service</label><input type="date" class="form-input" id="sf-serviceDate" value="${f.serviceDate&&f.serviceDate!=='null'?f.serviceDate:''}"/></div>
+      <div class="form-field"><label class="form-label">Next Service Date</label><input type="date" class="form-input" id="sf-nextServiceDate" value="${f.nextServiceDate&&f.nextServiceDate!=='null'?f.nextServiceDate:''}"/></div>
+      <div class="form-field"><label class="form-label">Cost ($)</label><input type="number" class="form-input" id="sf-cost" value="${f.cost&&f.cost!=='null'?f.cost:''}"/></div>
+    </div></div>
+    <div class="card"><div class="card-title">📋 Details</div>
+      <div class="form-field" style="margin-bottom:12px"><label class="form-label">Work Done</label><textarea class="form-textarea" id="sf-workDone">${esc(f.workDone||'')}</textarea></div>
+      <div class="form-field"><label class="form-label">Notes</label><textarea class="form-textarea" id="sf-notes">${esc(f.notes||'')}</textarea></div>
+    </div>
+    ${f.nextServiceDate&&f.nextServiceDate!=='null'?`<div class="info-box"><span>📅</span><div>Calendar reminder ready for <strong>${fmtDate(f.nextServiceDate)}</strong></div></div>`:''}
+    <div class="btn-row"><button class="btn btn-success" onclick="saveScanRecord()">💾 Save to Log</button><button class="btn btn-ghost" onclick="state.scanStage='upload';render()">↩ Rescan</button></div>`;
+}
+
+function renderScanDone(){
+  const r=state.lastRecord;
+  return`<div style="text-align:center;padding:48px 0 32px"><div style="font-size:56px;animation:pop .5s ease-out">✅</div><div style="font-size:20px;font-weight:700;color:var(--text2);margin-top:16px">Saved!</div><div style="font-size:13px;color:var(--slate);margin-top:6px">${esc(r?.system||'')}</div></div>
+    <div class="card"><div class="form-grid">
+      ${[['System',r?.system],['Category',(CAT_ICONS[r?.category]||'')+' '+(r?.category||'')],['Serviced By',r?.performedBy],['Date of Service',fmtDate(r?.lastMaint)],['Next Service',fmtDate(r?.nextDue||r?.nextServiceDate)],['Cost',r?.cost?'$'+Number(r.cost).toLocaleString():'—']].map(([l,v])=>`<div><div class="form-label">${l}</div><div style="color:var(--text2);font-weight:600;margin-top:4px;font-size:13px">${esc(v||'—')}</div></div>`).join('')}
+      ${r?.workDone?`<div style="grid-column:1/-1"><div class="form-label">Work Done</div><div style="color:var(--text2);font-size:13px;margin-top:4px">${esc(r.workDone)}</div></div>`:''}
+    </div></div>
+    <div class="btn-row">
+      ${(r?.nextDue||r?.nextServiceDate)?`<button class="btn btn-primary" onclick="addToCalendar(state.lastRecord)">📅 Add Reminder</button>`:''}
+      <button class="btn btn-ghost" onclick="state.scanStage='upload';render()">📷 Scan Another</button>
+    </div>`;
+}
+
+// SETTINGS
+function renderSettings(){
+  const hK=!!cfg('anthropicKey'),hS=!!cfg('sheetId'),hSc=!!cfg('scriptUrl'),hA=!!cfg('apiKey');
+  return`<div class="card"><div class="card-title">🤖 Anthropic API Key</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><div class="setting-label">API Key</div><div class="setting-sub">Required for bill scanning &amp; voice parsing</div></div><span class="pill ${hK?'':'warn'}">${hK?'✓ Set':'Not set'}</span></div>
+      <input class="setting-input" type="password" id="cfg-akey" placeholder="sk-ant-…" value="${hK?'••••••••••':''}"/>
+      <button class="btn btn-primary" style="margin-top:10px;padding:9px 16px;font-size:13px" onclick="saveKey('anthropicKey','cfg-akey')">Save Key</button>
+      <div style="font-size:12px;color:var(--slate);margin-top:8px">Get your key at <strong>console.anthropic.com</strong></div>
+    </div>
+    <div class="card"><div class="card-title">📊 Google Sheets Sync</div>
+      <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Spreadsheet ID</div><div class="setting-sub">From your Sheet URL between /d/ and /edit</div></div><span class="pill ${hS?'':'warn'}">${hS?'✓ Set':'Not set'}</span></div><input class="setting-input" id="cfg-sid" placeholder="1BxiMVs0XRA5n…" value="${cfg('sheetId')}"/></div>
+      <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Google API Key</div><div class="setting-sub">For reading the sheet (read-only)</div></div><span class="pill ${hA?'':'warn'}">${hA?'✓ Set':'Not set'}</span></div><input class="setting-input" type="password" id="cfg-gkey" placeholder="AIza…" value="${hA?'••••':''}"/></div>
+      <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Apps Script URL</div><div class="setting-sub">For writing records to the sheet</div></div><span class="pill ${hSc?'':'warn'}">${hSc?'✓ Set':'Not set'}</span></div><input class="setting-input" id="cfg-surl" placeholder="https://script.google.com/macros/s/…/exec" value="${cfg('scriptUrl')}"/></div>
+      <button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="saveSheetConfig()">Save &amp; Test Connection</button>
+    </div>
+    <div class="card"><div class="card-title">📋 Quick Setup</div><div style="font-size:13px;color:var(--text2);line-height:1.8">
+      <div style="font-weight:600;color:var(--sky)">1. Get Anthropic API key</div><div style="margin-bottom:10px">Visit <strong>console.anthropic.com</strong> → API Keys</div>
+      <div style="font-weight:600;color:var(--sky)">2. Create your Google Sheet</div><div style="margin-bottom:10px">New blank sheet → copy ID from URL</div>
+      <div style="font-weight:600;color:var(--sky)">3. Deploy Apps Script</div><div style="margin-bottom:10px">Extensions → Apps Script → paste script.gs → Deploy → Web App → Anyone</div>
+      <div style="font-weight:600;color:var(--sky)">4. Install on phone</div><div>iPhone: Safari → Share → Add to Home Screen<br>Android: Chrome → ⋮ → Add to Home Screen</div>
+    </div></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="loadFromSheets()">🔄 Refresh from Sheets</button>`;
+}
+
+// VOICE ACTIONS
+function setAddMode(mode){state.addMode=mode;if(mode==='form'&&!state.voiceForm.category)state.voiceForm={category:'Appliance'};render();}
+
+function startVoiceEntry(){
+  if(!speechOK()){showToast('⚠️ Voice not supported in this browser');return;}
+  state.voiceStage='listening';state.voiceTranscript='';state.voiceError=null;render();
+  startListening(
+    interim=>{state.voiceTranscript=interim;const el=document.querySelector('.voice-transcript');if(el)el.innerHTML=interim||'<span style="color:var(--muted)">Start speaking…</span>';},
+    async(final,err)=>{
+      if(err||!final.trim()){state.voiceError=err?'Mic error: '+err:'Nothing captured. Try again.';state.voiceStage='idle';render();return;}
+      state.voiceTranscript=final;state.voiceStage='processing';render();
+      try{
+        const p=await parseVoiceEntry(final);
+        state.voiceForm={system:p.system||'',category:p.category||'Other',location:p.location||'',performedBy:p.performedBy||'',lastMaint:p.lastMaint||'',nextDue:p.nextDue||'',workDone:p.workDone||'',cost:p.cost!==null&&p.cost!==undefined?String(p.cost):'',notes:p.notes||'',installed:''};
+        state.voiceStage='review';
+      }catch(e){state.voiceError='Could not parse: '+e.message;state.voiceStage='idle';}
+      render();
+    }
+  );
+}
+
+function stopVoiceCapture(){stopListening();}
+
+function tryExample(el){
+  const raw=el.textContent.replace(/[""]/g,'');
+  state.voiceTranscript=raw;state.voiceStage='processing';state.voiceError=null;render();
+  parseVoiceEntry(raw).then(p=>{
+    state.voiceForm={system:p.system||'',category:p.category||'Other',location:p.location||'',performedBy:p.performedBy||'',lastMaint:p.lastMaint||'',nextDue:p.nextDue||'',workDone:p.workDone||'',cost:p.cost!==null&&p.cost!==undefined?String(p.cost):'',notes:p.notes||'',installed:''};
+    state.voiceStage='review';render();
+  }).catch(e=>{state.voiceError='Parse error: '+e.message;state.voiceStage='idle';render();});
+}
+
+function getVoiceFields(pfx){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  return{system:g(pfx+'-system'),category:g(pfx+'-category'),location:g(pfx+'-location'),performedBy:g(pfx+'-performedBy'),installed:g(pfx+'-installed')||'',lastMaint:g(pfx+'-lastMaint'),nextDue:g(pfx+'-nextDue'),cost:g(pfx+'-cost'),workDone:g(pfx+'-workDone'),notes:g(pfx+'-notes')};
+}
+
+async function saveVoiceRecord(){
+  const fields=getVoiceFields('vf');
+  const f=state.voiceForm;
+  const rec={id:Date.now(),scannedFromBill:false,
+    system:fields.system||f.system||'',category:fields.category||f.category||'Other',
+    location:fields.location||f.location||'',performedBy:fields.performedBy||f.performedBy||'',
+    installed:fields.installed||f.installed||'',lastMaint:fields.lastMaint||f.lastMaint||'',
+    nextDue:fields.nextDue||f.nextDue||'',cost:fields.cost||f.cost||'',
+    workDone:fields.workDone||f.workDone||'',notes:fields.notes||f.notes||''};
+  rec.status=compStatus(rec.nextDue);
+  state.records.unshift(rec);state.lastRecord=rec;
+  state.voiceStage='idle';state.voiceForm={};state.voiceTranscript='';
+  showTab('log');
+  if(cfg('scriptUrl')){try{await sheetsAppend(buildRow(rec));showToast('✅ Saved & synced to Google Sheets!');}catch(e){showToast('⚠️ Saved — Sheets sync failed');}}
+  else showToast('✅ Saved to log!');
+  if(rec.nextDue){setTimeout(()=>{if(confirm(`Set a Google Calendar reminder for ${rec.system} on ${fmtDate(rec.nextDue)}?`))addToCalendar(rec);},600);}
+}
+
+// SCAN ACTIONS
+function handleFile(input){
+  const file=input.files[0];if(!file)return;state.scanError=null;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    const b64=e.target.result.split(',')[1];state.scanImage=b64;state.scanMime=file.type||'image/jpeg';state.scanStage='scanning';render();
+    try{
+      const p=await scanBillImage(b64,state.scanMime);state.scanExtracted=p;
+      state.scanForm={system:p.system||'',category:p.category||'Other',location:p.location||'',performedBy:p.performedBy||'',serviceDate:p.serviceDate||'',nextServiceDate:p.nextServiceDate||'',workDone:p.workDone||'',cost:p.cost!=null?String(p.cost):'',notes:p.notes||''};
+      state.scanStage='review';
+    }catch(e){state.scanError=e.message;state.scanStage='upload';}
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveScanRecord(){
+  const g=id=>(document.getElementById(id)||{}).value||'';const f=state.scanForm;
+  const rec={id:Date.now(),scannedFromBill:true,system:g('sf-system')||f.system,category:g('sf-category')||f.category,location:g('sf-location')||f.location,performedBy:g('sf-performedBy')||f.performedBy,lastMaint:g('sf-serviceDate')||f.serviceDate,nextDue:g('sf-nextServiceDate')||f.nextServiceDate,cost:g('sf-cost')||f.cost,workDone:g('sf-workDone')||f.workDone,notes:g('sf-notes')||f.notes,installed:''};
+  rec.status=compStatus(rec.nextDue);state.records.unshift(rec);state.lastRecord=rec;state.scanStage='done';render();
+  if(cfg('scriptUrl')){try{await sheetsAppend(buildRow(rec));showToast('✅ Saved & synced to Sheets!');}catch(e){showToast('⚠️ Saved — sync failed');}}
+  else showToast('✅ Saved to log!');
+}
+
+function buildRow(r){return[r.id,r.system,r.category,r.location||'',r.installed||'',r.lastMaint||'',r.performedBy||'',r.workDone||'',r.cost||'',r.nextDue||'',r.status,r.notes||'',r.scannedFromBill?'TRUE':'FALSE'];}
+
+// MODALS
+function openRecord(id){const r=state.records.find(x=>String(x.id)===String(id));if(r)showModal('view',r);}
+function openAddModal(){showModal('add',{system:'',category:'Appliance',location:'',installed:'',lastMaint:'',performedBy:'',workDone:'',cost:'',nextDue:'',notes:''});}
+
+function showModal(type,data){
+  state.modal={type,data};const cats=CATS;let body='';
+  if(type==='view'){
+    const r=data,ss=r.status;
+    body=`<div class="modal-handle"></div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px"><span style="font-size:32px">${CAT_ICONS[r.category]||'🔧'}</span><div style="flex:1"><div class="modal-title">${esc(r.system)}</div><div class="modal-sub">${esc(r.category)} · ${esc(r.location||'')}</div></div><span class="badge ${scls(ss)}">${ss}</span></div>
+      <div class="form-grid" style="margin-bottom:16px">${[['Installed',fmtDate(r.installed)],['Last Maint.',fmtDate(r.lastMaint)],['Next Due',fmtDate(r.nextDue)],['Cost',r.cost?'$'+Number(r.cost).toLocaleString():'—'],['By',r.performedBy||'—'],['Location',r.location||'—']].map(([l,v])=>`<div><div class="form-label">${l}</div><div style="color:var(--text2);font-weight:600;margin-top:4px;font-size:13px">${esc(v)}</div></div>`).join('')}</div>
+      ${r.workDone?`<div style="margin-bottom:12px"><div class="form-label">Work Done</div><div style="background:#0f1923;border-radius:8px;padding:10px 12px;font-size:13px;margin-top:6px;color:var(--text2)">${esc(r.workDone)}</div></div>`:''}
+      ${r.notes?`<div style="margin-bottom:16px"><div class="form-label">Notes</div><div style="background:rgba(245,127,23,.1);border-radius:8px;padding:10px 12px;font-size:13px;margin-top:6px;color:#ffb74d">💡 ${esc(r.notes)}</div></div>`:''}
+      <div class="btn-row"><button class="btn btn-primary" onclick="showModal('edit',state.modal.data)">✏️ Edit</button>${r.nextDue?`<button class="btn btn-ghost" onclick="addToCalendar(state.modal.data)">📅 Remind</button>`:''}<button class="btn btn-ghost" onclick="closeModal()">Close</button></div>`;
+  }else{
+    const r=data,isAdd=type==='add';
+    body=`<div class="modal-handle"></div>
+      <div class="modal-title">${isAdd?'➕ Add Item':'✏️ Edit Item'}</div><div class="modal-sub" style="margin-bottom:16px">Fill in the maintenance details</div>
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">System / Device</label><div class="input-with-mic"><input class="form-input" id="m-system" value="${esc(r.system||'')}"/><button class="mic-inline" id="mic-m-system" onclick="startFieldMic('m-system')">🎤</button></div></div>
+        <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="m-category">${cats.map(c=>`<option${r.category===c?' selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="form-field"><label class="form-label">Location</label><div class="input-with-mic"><input class="form-input" id="m-location" value="${esc(r.location||'')}"/><button class="mic-inline" id="mic-m-location" onclick="startFieldMic('m-location')">🎤</button></div></div>
+        <div class="form-field full"><label class="form-label">Performed By</label><div class="input-with-mic"><input class="form-input" id="m-performedBy" value="${esc(r.performedBy||'')}"/><button class="mic-inline" id="mic-m-performedBy" onclick="startFieldMic('m-performedBy')">🎤</button></div></div>
+        <div class="form-field"><label class="form-label">Installed Date</label><input type="date" class="form-input" id="m-installed" value="${r.installed||''}"/></div>
+        <div class="form-field"><label class="form-label">Last Maintenance</label><input type="date" class="form-input" id="m-lastMaint" value="${r.lastMaint||''}"/></div>
+        <div class="form-field"><label class="form-label">Next Due Date</label><input type="date" class="form-input" id="m-nextDue" value="${r.nextDue||''}"/></div>
+        <div class="form-field"><label class="form-label">Cost ($)</label><input type="number" class="form-input" id="m-cost" value="${r.cost||''}"/></div>
+        <div class="form-field full"><label class="form-label">Work Done</label><textarea class="form-textarea" id="m-workDone">${esc(r.workDone||'')}</textarea></div>
+        <div class="form-field full"><label class="form-label">Notes</label><textarea class="form-textarea" id="m-notes">${esc(r.notes||'')}</textarea></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-success" onclick="saveModal('${type}','${r.id||''}')">💾 Save</button>${!isAdd?`<button class="btn btn-ghost" style="color:#ef9a9a;border-color:rgba(198,40,40,.3)" onclick="deleteRecord('${r.id}')">🗑 Delete</button>`:''}<button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`;
+  }
+  const overlay=document.createElement('div');overlay.className='modal-overlay';overlay.id='modal-overlay';
+  overlay.innerHTML=`<div class="modal-sheet">${body}</div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  document.body.appendChild(overlay);
+}
+
+function closeModal(){const el=document.getElementById('modal-overlay');if(el)el.remove();state.modal=null;}
+
+async function saveModal(type,existingId){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const rec={system:g('m-system'),category:g('m-category'),location:g('m-location'),performedBy:g('m-performedBy'),installed:g('m-installed'),lastMaint:g('m-lastMaint'),nextDue:g('m-nextDue'),cost:g('m-cost'),workDone:g('m-workDone'),notes:g('m-notes'),scannedFromBill:false};
+  rec.status=compStatus(rec.nextDue);
+  if(type==='add'){rec.id=Date.now();state.records.unshift(rec);}
+  else{const idx=state.records.findIndex(r=>String(r.id)===String(existingId));if(idx>=0){rec.id=existingId;state.records[idx]=rec;}}
+  closeModal();render();
+  if(cfg('scriptUrl')){try{await sheetsAppend(buildRow(rec));showToast('✅ Saved & synced');}catch(e){showToast('⚠️ Saved — sync failed');}}
+  else showToast('✅ Saved');
+}
+
+async function deleteRecord(id){state.records=state.records.filter(r=>String(r.id)!==String(id));closeModal();render();showToast('🗑 Deleted');}
+
+// SETTINGS ACTIONS
+function saveKey(k,inputId){const v=document.getElementById(inputId)?.value;if(v&&!v.includes('•')){cfg(k,v);showToast('✅ Key saved');}render();}
+async function saveSheetConfig(){
+  const sid=document.getElementById('cfg-sid')?.value,gk=document.getElementById('cfg-gkey')?.value,su=document.getElementById('cfg-surl')?.value;
+  if(sid)cfg('sheetId',sid);if(gk&&!gk.includes('•'))cfg('apiKey',gk);if(su)cfg('scriptUrl',su);
+  showToast('⏳ Testing connection…');await loadFromSheets();
+  if(!state.syncError)showToast('✅ Connected to Google Sheets!');else showToast('❌ '+state.syncError);render();
+}
+
+// EVENTS
+function attachEvents(){
+  const dz=document.getElementById('dropzone');
+  if(dz){
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f){const fi=document.getElementById('file-inp');fi.files=e.dataTransfer.files;handleFile(fi);}});
+  }
+}
+function setCat(c){state.catFilter=c;render();}
+function setSt(s){state.statusFilter=s;render();}
+
+// PWA
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installPrompt=e;render();});
+function installApp(){if(!state.installPrompt)return;state.installPrompt.prompt();state.installPrompt.userChoice.then(()=>{state.installPrompt=null;render();});}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+// INIT
+updateHeaderSub();render();
+if(cfg('sheetId')&&cfg('apiKey'))loadFromSheets();
+</script>
+</body>
+</html>

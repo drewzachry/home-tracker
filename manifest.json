@@ -1,0 +1,38 @@
+{
+  "name": "Home Maintenance Tracker",
+  "short_name": "Home Tracker",
+  "description": "Track home maintenance, scan bills, sync to Google Sheets",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d2137",
+  "theme_color": "#0d2137",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a3c5e'/><text y='130' x='96' text-anchor='middle' font-size='110'>🏠</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%231a3c5e'/><text y='360' x='256' text-anchor='middle' font-size='300'>🏠</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Scan a Bill",
+      "short_name": "Scan",
+      "url": "/?tab=scan",
+      "description": "Photograph a service invoice"
+    },
+    {
+      "name": "View Dashboard",
+      "short_name": "Dashboard",
+      "url": "/?tab=dashboard"
+    }
+  ]
+}
