@@ -240,6 +240,20 @@ async function sheetsAppend(row){
   if(!r.ok)throw new Error('Append failed: '+r.status);
   const j=await r.json();if(j.error)throw new Error(j.error);return j;
 }
+
+async function sheetsUpdateById(id,row){
+  const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateById',id:String(id),row})});
+  if(!r.ok)throw new Error('Update failed: '+r.status);
+  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+}
+
+async function sheetsDeleteById(id){
+  const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deleteById',id:String(id)})});
+  if(!r.ok)throw new Error('Delete failed: '+r.status);
+  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+}
 async function loadFromSheets(){
   updateSyncStatus('syncing');const rows=await sheetsRead();
   if(rows){state.records=rows.map(r=>({...r,status:compStatus(r.nextDue)}));updateSyncStatus('ok');state.syncError=null;}
@@ -848,14 +862,27 @@ async function saveModal(type,existingId){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const rec={system:g('m-system'),category:g('m-category'),location:g('m-location'),performedBy:g('m-performedBy'),installed:g('m-installed'),lastMaint:g('m-lastMaint'),nextDue:g('m-nextDue'),cost:g('m-cost'),workDone:g('m-workDone'),notes:g('m-notes'),scannedFromBill:false};
   rec.status=compStatus(rec.nextDue);
-  if(type==='add'){rec.id=Date.now();state.records.unshift(rec);}
-  else{const idx=state.records.findIndex(r=>String(r.id)===String(existingId));if(idx>=0){rec.id=existingId;state.records[idx]=rec;}}
-  closeModal();render();
-  if(cfg('scriptUrl')){try{await sheetsAppend(buildRow(rec));showToast('✅ Saved & synced');}catch(e){showToast('⚠️ Saved — sync failed');}}
-  else showToast('✅ Saved');
+  if(type==='add'){
+    rec.id=Date.now();
+    state.records.unshift(rec);
+    closeModal();render();
+    if(cfg('scriptUrl')){try{await sheetsAppend(buildRow(rec));showToast('✅ Added & synced to Sheets');}catch(e){showToast('⚠️ Saved locally — sync failed');}}
+    else showToast('✅ Added to log');
+  } else {
+    const idx=state.records.findIndex(r=>String(r.id)===String(existingId));
+    if(idx>=0){rec.id=existingId;state.records[idx]=rec;}
+    closeModal();render();
+    if(cfg('scriptUrl')){try{await sheetsUpdateById(existingId,buildRow(rec));showToast('✅ Updated & synced to Sheets');}catch(e){showToast('⚠️ Saved locally — sync failed');}}
+    else showToast('✅ Updated');
+  }
 }
 
-async function deleteRecord(id){state.records=state.records.filter(r=>String(r.id)!==String(id));closeModal();render();showToast('🗑 Deleted');}
+async function deleteRecord(id){
+  state.records=state.records.filter(r=>String(r.id)!==String(id));
+  closeModal();render();
+  if(cfg('scriptUrl')){try{await sheetsDeleteById(id);showToast('🗑 Deleted & removed from Sheets');}catch(e){showToast('🗑 Deleted locally — sheet sync failed');}}
+  else showToast('🗑 Deleted');
+}
 
 // SETTINGS ACTIONS
 function saveKey(k,inputId){const v=document.getElementById(inputId)?.value;if(v&&!v.includes('•')){cfg(k,v);showToast('✅ Key saved');}render();}
