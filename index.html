@@ -726,12 +726,16 @@ function renderSettings(){
       <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Spreadsheet ID</div><div class="setting-sub">From your Sheet URL between /d/ and /edit</div></div><span class="pill ${hS?'':'warn'}">${hS?'✓ Set':'Not set'}</span></div><input class="setting-input" id="cfg-sid" placeholder="1BxiMVs0XRA5n…" value="${cfg('sheetId')}"/></div>
       <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Google API Key</div><div class="setting-sub">For reading the sheet (read-only)</div></div><span class="pill ${hA?'':'warn'}">${hA?'✓ Set':'Not set'}</span></div><input class="setting-input" type="password" id="cfg-gkey" placeholder="AIza…" value="${hA?'••••':''}"/></div>
       <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><div><div class="setting-label">Apps Script URL</div><div class="setting-sub">For writing records to the sheet</div></div><span class="pill ${hSc?'':'warn'}">${hSc?'✓ Set':'Not set'}</span></div><input class="setting-input" id="cfg-surl" placeholder="https://script.google.com/macros/s/…/exec" value="${cfg('scriptUrl')}"/></div>
-      <button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="saveSheetConfig()">Save &amp; Test Connection</button>
-    </div>
-    <div class="card"><div class="card-title">📋 Quick Setup</div><div style="font-size:13px;color:var(--text2);line-height:1.8">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="saveSheetConfig()">Save &amp; Test Read</button>
+        <button class="btn btn-ghost" style="padding:9px 16px;font-size:13px" onclick="testScriptWrite()">🧪 Test Write</button>
+      </div>
+      <div id="test-result" style="margin-top:12px;font-size:13px;display:none"></div>
+    </div>`
+  + `<div class="card"><div class="card-title">📋 Quick Setup</div><div style="font-size:13px;color:var(--text2);line-height:1.8">
       <div style="font-weight:600;color:var(--sky)">1. Get Anthropic API key</div><div style="margin-bottom:10px">Visit <strong>console.anthropic.com</strong> → API Keys</div>
       <div style="font-weight:600;color:var(--sky)">2. Create your Google Sheet</div><div style="margin-bottom:10px">New blank sheet → copy ID from URL</div>
-      <div style="font-weight:600;color:var(--sky)">3. Deploy Apps Script</div><div style="margin-bottom:10px">Extensions → Apps Script → paste script.gs → Deploy → Web App → Anyone</div>
+      <div style="font-weight:600;color:var(--sky)">3. Deploy Apps Script</div><div style="margin-bottom:10px">Extensions → Apps Script → paste script.gs → Deploy → Web App → Anyone (not "Anyone with Google account")</div>
       <div style="font-weight:600;color:var(--sky)">4. Install on phone</div><div>iPhone: Safari → Share → Add to Home Screen<br>Android: Chrome → ⋮ → Add to Home Screen</div>
     </div></div>
     <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="loadFromSheets()">🔄 Refresh from Sheets</button>`;
@@ -891,6 +895,36 @@ async function saveSheetConfig(){
   if(sid)cfg('sheetId',sid);if(gk&&!gk.includes('•'))cfg('apiKey',gk);if(su)cfg('scriptUrl',su);
   showToast('⏳ Testing connection…');await loadFromSheets();
   if(!state.syncError)showToast('✅ Connected to Google Sheets!');else showToast('❌ '+state.syncError);render();
+}
+
+async function testScriptWrite(){
+  const url=cfg('scriptUrl');
+  const el=document.getElementById('test-result');
+  if(!url){if(el){el.style.display='block';el.style.color='#ef9a9a';el.textContent='❌ No Apps Script URL saved yet.';}return;}
+  if(el){el.style.display='block';el.style.color='var(--slate)';el.textContent='⏳ Sending test row to sheet…';}
+  try{
+    const testRow=['TEST-'+Date.now(),'🧪 Test Entry','Other','Test Location','','','Test Person','Connection test',
+      '0','','OK','Auto-delete this row','FALSE'];
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'append',row:testRow})});
+    const text=await r.text();
+    let json={};try{json=JSON.parse(text);}catch(e){}
+    if(el){
+      if(r.ok&&json.ok){
+        el.style.color='#81c784';
+        el.style.display='block';
+        el.innerHTML='✅ <strong>Write works!</strong> A test row was added to your sheet. Check it and delete the "🧪 Test Entry" row.<br><span style="font-size:11px;color:var(--slate)">Response: '+JSON.stringify(json)+'</span>';
+      } else {
+        el.style.color='#ef9a9a';
+        el.style.display='block';
+        el.innerHTML='❌ <strong>Write failed</strong> (HTTP '+r.status+')<br><span style="font-size:11px">Response: '+text.substring(0,300)+'</span><br><br>'
+          +'<strong>Likely fix:</strong> In Apps Script → Deploy → Manage Deployments → edit → make sure <em>"Who has access"</em> is set to <strong>"Anyone"</strong> (not "Anyone with Google account") and redeploy as New Version.';
+      }
+    }
+  }catch(e){
+    if(el){el.style.color='#ef9a9a';el.style.display='block';
+      el.innerHTML='❌ <strong>Network error:</strong> '+e.message+'<br><span style="font-size:11px;color:var(--slate)">This usually means the Apps Script URL is wrong, or CORS is blocking the request. Make sure you copied the deployment URL (not the editor URL).</span>';}
+  }
 }
 
 // EVENTS
