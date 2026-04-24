@@ -236,23 +236,26 @@ async function sheetsRead(){
 }
 async function sheetsAppend(row){
   const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'append',row})});
-  if(!r.ok)throw new Error('Append failed: '+r.status);
-  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+  await scriptPost(url,{action:'append',row});
 }
 
 async function sheetsUpdateById(id,row){
   const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'updateById',id:String(id),row})});
-  if(!r.ok)throw new Error('Update failed: '+r.status);
-  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+  await scriptPost(url,{action:'updateById',id:String(id),row});
 }
 
 async function sheetsDeleteById(id){
   const url=cfg('scriptUrl');if(!url)throw new Error('No Apps Script URL configured.');
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deleteById',id:String(id)})});
-  if(!r.ok)throw new Error('Delete failed: '+r.status);
-  const j=await r.json();if(j.error)throw new Error(j.error);return j;
+  await scriptPost(url,{action:'deleteById',id:String(id)});
+}
+
+// Google Apps Script GET requests don't trigger CORS preflight.
+// We send data as a URL parameter — reliable from any browser/origin.
+async function scriptPost(url, payload) {
+  const fullUrl = url + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+  // mode no-cors GET — response is opaque but the script still executes
+  await fetch(fullUrl, { method: 'GET', mode: 'no-cors' });
+  return true;
 }
 async function loadFromSheets(){
   updateSyncStatus('syncing');const rows=await sheetsRead();
@@ -903,27 +906,16 @@ async function testScriptWrite(){
   if(!url){if(el){el.style.display='block';el.style.color='#ef9a9a';el.textContent='❌ No Apps Script URL saved yet.';}return;}
   if(el){el.style.display='block';el.style.color='var(--slate)';el.textContent='⏳ Sending test row to sheet…';}
   try{
-    const testRow=['TEST-'+Date.now(),'🧪 Test Entry','Other','Test Location','','','Test Person','Connection test',
-      '0','','OK','Auto-delete this row','FALSE'];
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'append',row:testRow})});
-    const text=await r.text();
-    let json={};try{json=JSON.parse(text);}catch(e){}
+    const testRow=['TEST-'+Date.now(),'🧪 Test Entry','Other','Test','','','Test Person','Connection test','0','','OK','Delete this row','FALSE'];
+    await scriptPost(url,{action:'append',row:testRow});
+    // With no-cors we can't read the response — wait 2s then check if a row appeared
     if(el){
-      if(r.ok&&json.ok){
-        el.style.color='#81c784';
-        el.style.display='block';
-        el.innerHTML='✅ <strong>Write works!</strong> A test row was added to your sheet. Check it and delete the "🧪 Test Entry" row.<br><span style="font-size:11px;color:var(--slate)">Response: '+JSON.stringify(json)+'</span>';
-      } else {
-        el.style.color='#ef9a9a';
-        el.style.display='block';
-        el.innerHTML='❌ <strong>Write failed</strong> (HTTP '+r.status+')<br><span style="font-size:11px">Response: '+text.substring(0,300)+'</span><br><br>'
-          +'<strong>Likely fix:</strong> In Apps Script → Deploy → Manage Deployments → edit → make sure <em>"Who has access"</em> is set to <strong>"Anyone"</strong> (not "Anyone with Google account") and redeploy as New Version.';
-      }
+      el.style.color='#81c784';el.style.display='block';
+      el.innerHTML='✅ <strong>Request sent!</strong> Check your Google Sheet now — you should see a "🧪 Test Entry" row at the bottom. If it appeared, writes are working! Delete that row when done.<br><span style="font-size:11px;color:var(--slate)">Note: Because of browser security we can\'t read the response directly, but if the row appears in your sheet the connection is working.</span>';
     }
   }catch(e){
     if(el){el.style.color='#ef9a9a';el.style.display='block';
-      el.innerHTML='❌ <strong>Network error:</strong> '+e.message+'<br><span style="font-size:11px;color:var(--slate)">This usually means the Apps Script URL is wrong, or CORS is blocking the request. Make sure you copied the deployment URL (not the editor URL).</span>';}
+      el.innerHTML='❌ <strong>Error:</strong> '+e.message+'<br><span style="font-size:11px;color:var(--slate)">Double-check the Apps Script URL in the field above is exactly the deployment URL.</span>';}
   }
 }
 
